@@ -42,7 +42,7 @@ interface SiteMapIndexData {
 type KeyString = { [key: string]: string }
 
 export default class SiteMapStorage {
-    constructor(options: SiteMapStorageConfig): void;
+    constructor(options: SiteMapStorageConfig);
 
     /**
      * creates a new `urlset data`
@@ -75,5 +75,10 @@ export default class SiteMapStorage {
     getSiteMapIndex(path: string): Promise<SiteMapIndexData[]>;
 
     prettyUrlSet(path: string, schemas?: KeyString | undefined): Promise<string>;
-    prettySiteMapIndex(path: string): Promise<string>;
+    /**
+     * print sitemapindex at the given path and subdirectories
+     * @param path path to begin the scan
+     * @param locPrefix this will prefix each `<loc>` with the given value
+     */
+    prettySiteMapIndex(path: string, locPrefix?: string): Promise<string>;
 }

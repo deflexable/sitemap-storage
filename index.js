@@ -34,16 +34,38 @@ const calculateTextByteSize = (text = '') => {
     return totalBytes;
 }
 
+const toTimestamp = (t = '') => {
+    t = t.split('.');
+    if (
+        t.length === 2 &&
+        t[1] === 'xml' &&
+        Number.isInteger(t = t[0] * 1) &&
+        new Date(t).toString() !== 'Invalid Date'
+    ) return t;
+};
+
+const toXml = (t) => `${t}.xml`;
+
 const initCate = async (directory) => {
     if (!Scope.sitemapDirectory[directory]) {
         try {
             await mkdir(directory, { recursive: true });
         } catch (_) { }
-        const list = await readdir(directory);
-        Scope.sitemapDirectory[directory] = { dirs: list.map(v => v * 1).sort().reverse(), tipBytes: 0, tipCounts: 0 };
+        const list = (
+            await Promise.all((await readdir(directory)).map(async v => {
+                const r = await promises.stat(join(directory, v));
+                return r.isFile() && v;
+            }))
+        ).filter(v => v);
+
+        Scope.sitemapDirectory[directory] = {
+            dirs: list.map(v => toTimestamp(v)).filter(v => v).sort().reverse(),
+            tipBytes: 0,
+            tipCounts: 0
+        };
         const tipPath = Scope.sitemapDirectory[directory].dirs[0];
         if (tipPath) {
-            const data = await readFile(join(directory, `${tipPath}`), { encoding: 'utf8' });
+            const data = await readFile(join(directory, toXml(tipPath)), { encoding: 'utf8' });
             Scope.sitemapDirectory[directory].tipBytes = calculateTextByteSize(data);
             Scope.sitemapDirectory[directory].tipCounts = data.split('\n').filter(v => v).length;
         } else Scope.sitemapDirectory[directory].dirs.push(Date.now() - 3);
@@ -69,13 +91,9 @@ const addSitemapURL = (data, directory) => {
                 Scope.sitemapDirectory[directory].tipBytes = 0;
                 Scope.sitemapDirectory[directory].tipCounts = 0;
             }
-            const filePath = join(directory, `${dirs[0]}`);
-            await appendFile(
-                filePath,
-                newContent,
-                { encoding: 'utf8' }
-            );
-            Scope.sitemapDirectory[directory].tipBytes += calculateTextByteSize(newContent);;
+            const filePath = join(directory, toXml(dirs[0]));
+            await appendFile(filePath, newContent, { encoding: 'utf8' });
+            Scope.sitemapDirectory[directory].tipBytes += calculateTextByteSize(newContent);
             ++Scope.sitemapDirectory[directory].tipCounts;
             resolve(filePath);
         } catch (error) {
@@ -105,7 +123,7 @@ const updateSitemap = (data, directory, dateCursor, remove) => {
             );
 
             if (nearestDir) {
-                const filePath = join(directory, `${nearestDir}`);
+                const filePath = join(directory, toXml(nearestDir));
                 let wasUpdated;
 
                 const currentData = await readFile(filePath, { encoding: 'utf8' });
@@ -263,22 +281,32 @@ class SiteMapStorage {
         return content;
     }
 
-    async getSiteMapIndex(path) {
+    getSiteMapIndex(path) {
         const dir = resolve(this.options.cwd, path);
-        const content = await Promise.all(
-            (await readdir(dir)).map(async v => {
-                const dest = join(dir, v);
-                const info = await promises.stat(dest);
-                if (info.isFile()) {
-                    return {
-                        loc: v,
-                        lastmod: info.mtime.getTime()
-                    };
-                }
-            })
-        );
 
-        return content.filter(v => v);
+        const recursiveRead = async (dir, tip) => {
+            const content = await Promise.all(
+                (await readdir(dir)).map(async v => {
+                    const dest = join(dir, v);
+                    const info = await promises.stat(dest);
+                    const loc = join(tip, v);
+
+                    if (info.isFile()) {
+                        if (v.endsWith('.xml') && v !== '.xml')
+                            return {
+                                loc,
+                                lastmod: info.mtime.getTime()
+                            };
+                    } else if (info.isDirectory()) {
+                        return (await recursiveRead(dest, loc));
+                    }
+                })
+            );
+
+            return content.flat().filter(v => v);
+        }
+
+        return recursiveRead(dir, '');
     }
 
     async prettyUrlSet(path, schemas) {
@@ -329,11 +357,11 @@ ${urlsetData.map(v => renderItem(v)).join('')}
         return blob.trim();
     }
 
-    async prettySiteMapIndex(path) {
+    async prettySiteMapIndex(path, locPrefix) {
         const indexList = await this.getSiteMapIndex(path);
         const renderItem = (d) => {
             const url = new URL(this.options.hostname);
-            url.pathname = join(path, d.loc);
+            url.pathname = join(locPrefix || '', path, d.loc);
 
             return `
     <sitemap>

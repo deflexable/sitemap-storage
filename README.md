@@ -75,15 +75,21 @@ const sitemap = new SiteMapStorage({
   storageDirectory: "/absolute/path/to/sitemaps",
 });
 
-sitemap.prettyUrlSet('./posts').then(result => {
+// print sitemapindex relative to ./ and prefix each <loc> with '/sitemaps'
+sitemap.prettySiteMapIndex('./', 'sitemaps').then(result => {
     // will output something like this:
 
     // <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
-    //     <sitemap>
-    //         <loc>https://example2.com/posts/1737117519084</loc>
-    //         <lastmod>2025-01-17</lastmod>
-    //     </sitemap>
+    // <sitemap>
+        // <loc>https://example2.com/sitemaps/community/1737139860436.xml</loc>
+        // <lastmod>2025-01-17</lastmod>
+    // </sitemap>
+
+    // <sitemap>
+        // <loc>https://example2.com/sitemaps/posts/1737139860436.xml</loc>
+        // <lastmod>2025-01-17</lastmod>
+    // </sitemap>
 
     // </sitemapindex>
 
