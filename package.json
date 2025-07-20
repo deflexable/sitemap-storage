@@ -1,6 +1,6 @@
 {
   "name": "sitemap-storage",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Efficiently store and deliver the sitemap to your web pages",
   "main": "index.js",
   "scripts": {

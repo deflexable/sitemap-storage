@@ -6,6 +6,14 @@ const { Scope } = require("./scope.js");
 const MAX_COUNTS = 45_000;
 const MAX_BYTES = 1024 * 1024 * 40; // 40M
 
+function escapeHTML(str) {
+    return str.replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 function getCharacterByteSize(char) {
     const charCode = char.codePointAt(0);
 
@@ -216,8 +224,8 @@ const validateUrlSetData = (data) => {
     });
 }
 
-const isLinkValid = v => /(\b(https):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig.test(v) ||
-    /(\b(http):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig.test(v);
+const isLinkValid = v => /^(\b(https):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])$/ig.test(v) ||
+    /^(\b(http):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])$/ig.test(v);
 
 const getModDate = (time) => {
     const dateObj = new Date(time);
@@ -319,7 +327,7 @@ class SiteMapStorage {
         const renderItem = (d) => {
             return `
   <url>
-    <loc>${transformLink(d.loc, hostname)}</loc>${d.lastmod ? `
+    <loc>${escapeHTML(transformLink(d.loc, hostname))}</loc>${d.lastmod ? `
     <lastmod>${getModDate(d.lastmod)}</lastmod>` : ''}${d.changefreq ? `
     <changefreq>${d.changefreq}</changefreq>` : ''}${d.priority ? `
     <priority>${d.priority}</priority>` : ''}${d.xhtml_link ? (Array.isArray(d.xhtml_link) ? d.xhtml_link : [d.xhtml_link]).map(x => `
@@ -331,14 +339,14 @@ class SiteMapStorage {
       ${Object.entries(d.image).map(([k, v]) => {
                 if (k === 'loc') v = transformLink(v, hostname);
                 return `
-      <image:${k}>${v}</image:${k}>`;
+      <image:${k}>${escapeHTML(v)}</image:${k}>`;
             }).join('').trimStart()}
     </image:image>` : ''}${d.video ? `
     <video:video>
       ${Object.entries(d.image).map(([k, v]) => {
                 if (['thumbnail_loc', 'content_loc'].includes(k)) v = transformLink(v, hostname);
                 return `
-      <video:${k}>${v}</video:${k}>`;
+      <video:${k}>${escapeHTML(v)}</video:${k}>`;
             }).join('').trimStart()}
     </video:video>` : ''}${d.mobile ? `
     <mobile:mobile />` : ''}
@@ -365,7 +373,7 @@ ${urlsetData.map(v => renderItem(v)).join('')}
 
             return `
     <sitemap>
-        <loc>${url.href}</loc>${d.lastmod ? `
+        <loc>${escapeHTML(url.href)}</loc>${d.lastmod ? `
         <lastmod>${getModDate(d.lastmod)}</lastmod>` : ''}
     </sitemap>
 `;
